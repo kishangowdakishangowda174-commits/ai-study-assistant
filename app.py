@@ -1,10 +1,25 @@
+import sys
+import os
 import streamlit as st
-from utils.rag import chunk_text, create_vector_store, retrieve
+
+# 🔧 Robust import for local utils
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
+utils_dir = os.path.join(current_dir, "utils")
+if utils_dir not in sys.path:
+    sys.path.append(utils_dir)
+
+from rag import chunk_text, create_vector_store, retrieve
 from groq import Groq
 from duckduckgo_search import DDGS
 
-# 🔑 Put your Groq API key here
-client = Groq(api_key="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")
+# 🔑 Groq API key from environment variable
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    st.error("Please set your GROQ_API_KEY in Streamlit Secrets")
+client = Groq(api_key=GROQ_API_KEY)
 
 st.title("AI Study Assistant")
 
@@ -61,17 +76,20 @@ if query:
         st.write(answer)
 
     except Exception as e:
-        st.write(f"Error: {e}")
+        st.error(f"Error: {e}")
 
 # ⭐ Extra Feature: Generate Questions
-if st.button("Generate Questions"):
+if st.button("Generate Questions") and query:
     context = retrieve(query)
 
     prompt = f"Generate 3 study questions from this content:\n{context}"
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-    )
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+        )
 
-    st.write(response.choices[0].message.content)
+        st.write(response.choices[0].message.content)
+    except Exception as e:
+        st.error(f"Error: {e}")
